@@ -1,0 +1,31 @@
+[project]
+name = "shared-player"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "browser-cookie3>=0.20.1",
+    "dotenv>=0.9.9",
+    "websockets>=15.0.1",
+    "yandex-music>=2.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.1.0",
+]
+
+[tool.ruff]
+target-version = 'py312'
+extend-include = ["*.ipynb"]
+exclude = [
+    '.git',
+    '.ruff_cache',
+    '.venv',
+    'venv',
+]
+
+# Configure single quotes
+[tool.ruff.format]
+quote-style = 'double'
