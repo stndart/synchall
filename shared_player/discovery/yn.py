@@ -237,10 +237,31 @@ class Ynison_discovery:
 
         queue = state["player_state"]["player_queue"]
         match queue["entity_type"]:
-            case "PLAYLIST":
+            case "PLAYLIST" | "RADIO":
                 i = queue["current_playable_index"]
                 playlist = queue["playable_list"]
                 track_id = playlist[i]["playable_id"]
+            case _:
+                raise RuntimeError(f"Unknown entity {queue['entity_type']}")
+
+        tracks = self.client.tracks(track_id)
+        assert len(tracks) > 0, f"Illegal track_id {track_id}"
+
+        return tracks[0]
+
+    def get_next_track(self, state: dict[str, Any] | None = None) -> Track | None:
+        if state is None:
+            state = self.get_player_state()
+
+        queue = state["player_state"]["player_queue"]
+        match queue["entity_type"]:
+            case "PLAYLIST" | "RADIO":
+                i = queue["current_playable_index"]
+                playlist = queue["playable_list"]
+                if len(playlist) >= i:
+                    track_id = playlist[i + 1]["playable_id"]
+                else:
+                    return None
             case _:
                 raise RuntimeError(f"Unknown entity {queue['entity_type']}")
 

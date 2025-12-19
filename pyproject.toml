@@ -7,7 +7,14 @@ requires-python = ">=3.12"
 dependencies = [
     "browser-cookie3>=0.20.1",
     "dotenv>=0.9.9",
+    "pydantic>=2.12.5",
     "websockets>=15.0.1",
+    "winrt-runtime>=3.2.1",
+    "winrt-sdk>=3.2.1",
+    "winrt-windows-foundation>=3.2.1",
+    "winrt-windows-foundation-collections>=3.2.1",
+    "winrt-windows-media>=3.2.1",
+    "winrt-windows-media-control>=3.2.1",
     "yandex-music>=2.2.0",
 ]
 
