@@ -237,7 +237,7 @@ class Ynison_discovery:
 
         queue = state["player_state"]["player_queue"]
         match queue["entity_type"]:
-            case "PLAYLIST" | "RADIO":
+            case "PLAYLIST" | "RADIO" | "ARTIST":
                 i = queue["current_playable_index"]
                 playlist = queue["playable_list"]
                 track_id = playlist[i]["playable_id"]

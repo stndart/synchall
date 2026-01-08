@@ -7,7 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
     "browser-cookie3>=0.20.1",
     "dotenv>=0.9.9",
+    "numpy>=2.4.0",
+    "pyaudio>=0.2.14",
+    "pycryptodome>=3.23.0",
     "pydantic>=2.12.5",
+    "requests>=2.32.5",
+    "sounddevice>=0.5.3",
     "websockets>=15.0.1",
     "winrt-runtime>=3.2.1",
     "winrt-sdk>=3.2.1",
@@ -16,11 +21,14 @@ dependencies = [
     "winrt-windows-media>=3.2.1",
     "winrt-windows-media-control>=3.2.1",
     "yandex-music>=2.2.0",
+    "yandex-music-downloader",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.1.0",
+    "more-itertools>=10.8.0",
+    "tqdm>=4.67.1",
 ]
 
 [tool.ruff]
@@ -36,3 +44,6 @@ exclude = [
 # Configure single quotes
 [tool.ruff.format]
 quote-style = 'double'
+
+[tool.uv.sources]
+yandex-music-downloader = { git = "https://github.com/llistochek/yandex-music-downloader.git", rev = "v3.5.4" }

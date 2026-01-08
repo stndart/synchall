@@ -115,7 +115,7 @@ class WinRT_discovery:
             return False
 
         self.target_session = session
-        self._update_handler(self.target_session, None)
+        self._update_handler(self.target_session, TUpdate.Metadata)
         return True
 
     def capture_session(self, session_id: str = "Automatic") -> bool:
@@ -221,10 +221,13 @@ class WinRT_discovery:
             self._last_meaning_update = update_type
 
     def print_upd(self):
-        print(
-            f"{self.status.name} [{self.position} / {self.current_track.duration}] "
-            f"{self.current_track.artist} - {self.current_track.title}"
-        )
+        if self.current_track is not None:
+            print(
+                f"{self.status.name} [{self.position} / {self.current_track.duration}] "
+                f"{self.current_track.artist} - {self.current_track.title}"
+            )
+        else:
+            print(f"{self.status.name} - no track")
 
     def get_current_track(self) -> WTrack | None:
         return self.current_track
