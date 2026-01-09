@@ -35,7 +35,7 @@ class SyncPlayer:
         self.port = int(os.getenv("SYNC_PORT", 5400))
         self.addr = f"http://{self.host}:{self.port}"
 
-        self.room = None
+        self.room = os.getenv("SYNC_ROOM", None)
         self.playback = StreamPlayback()
         self.poll_thread = threading.Thread(target=self.poll_thread_fun)
         self.poll_thread.start()

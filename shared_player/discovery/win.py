@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
+from datetime import datetime, timedelta, timezone
 from enum import Enum
+import time
 from typing import Any, Callable
 
 from pydantic import BaseModel
@@ -17,7 +18,7 @@ from winrt.windows.foundation import EventRegistrationToken
 class WTrack(BaseModel):
     artist: str
     title: str
-    duration: datetime.timedelta | None
+    duration: timedelta | None
 
     @staticmethod
     def new() -> WTrack:
@@ -39,11 +40,11 @@ class TUpdate(Enum):
     Metadata = "M"
 
 
-NULLDATE = datetime.datetime(1601, 1, 1, 0, 0, tzinfo=datetime.timezone.utc)
+NULLDATE = datetime(1601, 1, 1, 0, 0, tzinfo=timezone.utc)
 
 
-def now() -> datetime.datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+def now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class WinRT_discovery:
@@ -51,8 +52,8 @@ class WinRT_discovery:
 
     current_track: WTrack | None = None
     status: PlaybackStatus = PlaybackStatus.STOPPED
-    position: datetime.timedelta = datetime.timedelta()
-    _position_last_update: datetime.datetime = now()
+    position: timedelta = timedelta()
+    _position_last_update: datetime = now()
     _last_meaning_update: TUpdate = TUpdate.Metadata
 
     _target_session: MediaSession | None = None
@@ -64,10 +65,10 @@ class WinRT_discovery:
 
     # Armed toggle state for deferred play/pause detection
     _armed_toggle_to: PlaybackStatus | None = None
-    _armed_time: datetime.datetime = NULLDATE
-    _last_playback_event_time: datetime.datetime = NULLDATE
+    _armed_time: datetime = NULLDATE
+    _last_playback_event_time: datetime = NULLDATE
 
-    VERBOSE: bool = False
+    VERBOSE: bool = True
 
     @property
     def target_session(self) -> MediaSession:
@@ -170,26 +171,31 @@ class WinRT_discovery:
         playback_info = session.get_playback_info().playback_status
 
         if self.VERBOSE:
+            ts = f"[{datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}]"
             match update_type:
                 case TUpdate.Playback:
                     print(
+                        ts,
                         f"playback update: {playback_info.name}, "
                         f"type: {info.playback_type.name if info.playback_type else info.playback_type}, "
-                        f"timeline updated: {now() - position.last_updated_time} ago"
+                        f"timeline updated: {now() - position.last_updated_time} ago",
                     )
                 case TUpdate.Timeline:
                     print(
+                        ts,
                         f"timeline update: {position.position}/{position.end_time}, "
-                        f"updated: {position.last_updated_time.time()}, "
+                        f"updated: {position.last_updated_time.time()}, ",
                     )
                 case TUpdate.Seek:
                     print(
+                        ts,
                         f"seek update: {position.position}, "
-                        f"updated: {position.last_updated_time.time()}, "
+                        f"updated: {position.last_updated_time.time()}, ",
                     )
                 case TUpdate.Metadata:
                     print(
-                        f"metadata update: {info.artist} - {info.title} [{position.end_time}]"
+                        ts,
+                        f"metadata update: {info.artist} - {info.title} [{position.end_time}]",
                     )
 
         if self.current_track is None:
@@ -200,7 +206,7 @@ class WinRT_discovery:
         self.current_track.duration = position.end_time
 
         old_status = new_status = self.status
-        armed_timeout = datetime.timedelta(milliseconds=500)
+        armed_timeout = timedelta(milliseconds=500)
 
         if playback_info == PlaybackStatus.CLOSED:  # ill update from Ya.Music
             # P event confirms armed toggle (for pause: T, P, P scenario)
@@ -214,8 +220,7 @@ class WinRT_discovery:
 
                 if (
                     self._last_meaning_update == TUpdate.Seek
-                    and now() - self._position_last_update
-                    < datetime.timedelta(milliseconds=1)
+                    and now() - self._position_last_update < timedelta(milliseconds=1)
                 ):
                     new_status = PlaybackStatus.PLAYING
                 elif self._last_meaning_update == TUpdate.Metadata:
@@ -276,7 +281,7 @@ class WinRT_discovery:
     def get_current_track(self) -> WTrack | None:
         return self.current_track
 
-    def get_position(self) -> datetime.timedelta:
+    def get_position(self) -> timedelta:
         if self.status == PlaybackStatus.PLAYING:
             return now() - self._position_last_update + self.position
         return self.position

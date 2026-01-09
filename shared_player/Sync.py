@@ -4,8 +4,9 @@ from shared_player.playback.player import SyncPlayer
 def main():
     player = SyncPlayer()
 
-    uid = input("Enter room id: ")
-    player.connect(uid)
+    if player.room is None:
+        uid = input("Enter room id: ")
+        player.connect(uid)
 
     try:
         while True:

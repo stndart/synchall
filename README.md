@@ -13,6 +13,7 @@ Client/server app for synchronous music listening. Python for backend, small tra
     - [ ] Search on yandex music
     - [ ] Search locally (in given locations)
 - [x] Playback
+    - [ ] Seek track position
 - [ ] Stream downloads
     - [ ] from youtube
     - [x] from yandex music

@@ -72,14 +72,14 @@ class SyncHost:
                     return  # skip, non-informative
 
             print(
-                f"[{datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.2f')}]",
+                f"[{datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}]",
                 upd.format(),
             )
             self._last_event = upd
             self._post(f"/host/update/{self.room}", {"json": upd.model_dump_json()})
         except Exception as e:
             print(
-                f"[{datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.2f')}]",
+                f"[{datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}]",
                 f"error upd post: {str(e)}",
             )
             print(self.discovery.get_current_track())
