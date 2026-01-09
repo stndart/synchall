@@ -48,6 +48,10 @@ def now() -> datetime:
 
 
 class WinRT_discovery:
+    # static
+    ARMED_TIMEOUT_MS = 2500
+
+    # fields
     manager: MediaManager
 
     current_track: WTrack | None = None
@@ -68,7 +72,7 @@ class WinRT_discovery:
     _armed_time: datetime = NULLDATE
     _last_playback_event_time: datetime = NULLDATE
 
-    VERBOSE: bool = True
+    VERBOSE: bool = False
 
     @property
     def target_session(self) -> MediaSession:
@@ -206,7 +210,7 @@ class WinRT_discovery:
         self.current_track.duration = position.end_time
 
         old_status = new_status = self.status
-        armed_timeout = timedelta(milliseconds=500)
+        armed_timeout = timedelta(milliseconds=WinRT_discovery.ARMED_TIMEOUT_MS)
 
         if playback_info == PlaybackStatus.CLOSED:  # ill update from Ya.Music
             # P event confirms armed toggle (for pause: T, P, P scenario)
