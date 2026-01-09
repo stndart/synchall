@@ -27,6 +27,7 @@ class StreamPlayback:
     audio_stream_lock: Lock
     audio_thread: Thread
     _stopped: Event
+    _waiting: Event
 
     volume: float  # from 0 to 1
     unpaused: Event
@@ -54,6 +55,7 @@ class StreamPlayback:
             output=True,
         )
         self._stopped = Event()
+        self._waiting = Event()
         self.audio_thread = Thread(target=self.audio_thread_fun, daemon=True)
         self.audio_thread.start()
 
@@ -75,6 +77,15 @@ class StreamPlayback:
                 key_bytes = bytes.fromhex(decryption_key)
                 self.cipher = AES.new(key_bytes, nonce=bytes(12), mode=AES.MODE_CTR)
 
+    def reopen_convert(self):
+        with self.convert_stream_lock:
+            self.convert_stream.close()
+            self.convert_stream = StreamConvert(
+                StreamPlayback.FF_OUTPUT_FORMAT,
+                StreamPlayback.FF_OUTPUT_SAMPLE_RATE,
+                StreamPlayback.FF_OUTPUT_CHANNELS,
+            )
+
     def write(self, chunk: bytes):
         with self.convert_stream_lock:
             if self.cipher:
@@ -87,12 +98,17 @@ class StreamPlayback:
             while not self._stopped.is_set():
                 self.unpaused.wait()
 
-                N = self.audio_stream.get_write_available()
-                N *= self.convert_stream.channels * 2  # bytes per channel
+                with self.convert_stream_lock:
+                    N = self.audio_stream.get_write_available()
+                    N *= self.convert_stream.channels * 2  # bytes per channel
+                    if N == 0:
+                        continue
 
-                data = self.convert_stream.read(N)
-                if not data:
-                    continue
+                    data = self.convert_stream.read(N)
+                    if not data:
+                        if self._waiting.is_set():
+                            break
+                        continue
 
                 samples = np.frombuffer(data, dtype=np.int16)
                 samples_f = samples.astype(np.float32) / (2**15)
@@ -109,6 +125,7 @@ class StreamPlayback:
         if timeout is None:  # wait until the track is over
             with self.convert_stream_lock:  # prohibit writing
                 self.convert_stream.join()
+            self._waiting.set()
         else:
             self.convert_stream.close()
             self._stopped.set()
