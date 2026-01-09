@@ -8,21 +8,22 @@ Client/server app for synchronous music listening. Python for backend, small tra
 
 - [ ] Discover music and track progress
     - [x] Discovering Yandex Music through API
-    - [ ] Discovering through win sdk
+    - [x] Discovering through win sdk
     - [ ] Search on youtube
     - [ ] Search on yandex music
     - [ ] Search locally (in given locations)
-- [ ] Playback
+- [x] Playback
 - [ ] Stream downloads
     - [ ] from youtube
-    - [ ] from yandex music
+    - [x] from yandex music
     - [ ] p2p
         - [ ] STUN
         - [ ] TURN
         - [ ] local network discovery
-    - [ ] and stream playback
-- [ ] Send / update track progress as well as music source
-    - [ ] flask web server in docker
+    - [x] and stream playback
+- [x] Send / update track progress as well as music source
+    - [x] flask web server
+        - [ ] in docker
 - [ ] Tray icon with some buttons
     - [ ] Cute icon
 - [ ] Discord rich presence

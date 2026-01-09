@@ -95,6 +95,11 @@ def status_payload(device_id: str) -> dict[str, Any]:
 
 
 class Ynison_discovery:
+    # static
+    RATE_LIMIT = 1  # queries per second
+    WS_RETRIES = 3
+
+    # fields
     session_id: str
     device_id: str
     user_id: str
@@ -111,6 +116,7 @@ class Ynison_discovery:
     ynison_ticket: str
 
     client: Client
+    last_query: float  # unix time
 
     @staticmethod
     def get_session_id(skip_environ: bool = False) -> str:
@@ -172,6 +178,7 @@ class Ynison_discovery:
 
         self.client = Client(token)
         self.client.init()
+        self.last_query = time.time()
 
     def get_jumphost(self):
         uri = (
@@ -221,19 +228,43 @@ class Ynison_discovery:
         proto_meta_pct = quote(SEC_PROTO_META, safe="")
 
         async def conn():
+            td = 1 / Ynison_discovery.RATE_LIMIT
+            delay = self.last_query + td - time.time()
+            if delay > 0:
+                await asyncio.sleep(delay)
+
             async with websockets.connect(
                 self.ynison_shard,
                 additional_headers=self.headers,
                 subprotocols=["Bearer", "v2", proto_meta_pct],  # type: ignore
             ) as ws:
                 await ws.send(json.dumps(payload))
-                return json.loads(await ws.recv())
+                res = json.loads(await ws.recv())
+                self.last_query = time.time()
+                return res
 
-        return asyncio.run(conn())
+        e = None
+        for i in range(Ynison_discovery.WS_RETRIES):
+            try:
+                return asyncio.run(conn())
+            except websockets.exceptions.ConnectionClosedOK as exc:
+                e = exc
+        return {"error": str(e)}
+
+    def get_player_state_assert(
+        self, payload: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        state = self.get_player_state(payload)
+        for i in range(Ynison_discovery.WS_RETRIES):
+            if "player_state" in state:
+                break
+            self.get_jumphost()
+            state = self.get_player_state(payload)
+        return state
 
     def get_current_track(self, state: dict[str, Any] | None = None) -> Track:
         if state is None:
-            state = self.get_player_state()
+            state = self.get_player_state_assert()
 
         queue = state["player_state"]["player_queue"]
         match queue["entity_type"]:
@@ -251,7 +282,7 @@ class Ynison_discovery:
 
     def get_next_track(self, state: dict[str, Any] | None = None) -> Track | None:
         if state is None:
-            state = self.get_player_state()
+            state = self.get_player_state_assert()
 
         queue = state["player_state"]["player_queue"]
         match queue["entity_type"]:

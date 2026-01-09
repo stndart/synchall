@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import BaseModel
 from winrt.windows.media.control import (
@@ -60,6 +60,13 @@ class WinRT_discovery:
     _playback_update_reg_token: EventRegistrationToken
     _metadata_update_reg_token: EventRegistrationToken
 
+    _callbacks: list[Callable]
+
+    # Armed toggle state for deferred play/pause detection
+    _armed_toggle_to: PlaybackStatus | None = None
+    _armed_time: datetime.datetime = NULLDATE
+    _last_playback_event_time: datetime.datetime = NULLDATE
+
     VERBOSE: bool = False
 
     @property
@@ -101,10 +108,12 @@ class WinRT_discovery:
         return media_props
 
     def __init__(self):
+        self._callbacks = []
+
         try:
             self.manager = asyncio.run(WinRT_discovery.get_manager())
-        except Exception:
-            raise RuntimeError("Failed to get media sessions manager")
+        except Exception as e:
+            raise RuntimeError(f"Failed to get media sessions manager {e}")
 
         if not self._get_current_session():
             print("Failed to get current session")
@@ -117,6 +126,12 @@ class WinRT_discovery:
         self.target_session = session
         self._update_handler(self.target_session, TUpdate.Metadata)
         return True
+
+    def on_update(self, callback: Callable):
+        self._callbacks.append(callback)
+
+    def clear_callbacks(self):
+        self._callbacks.clear()
 
     def capture_session(self, session_id: str = "Automatic") -> bool:
         all_sessions = self.manager.get_sessions()
@@ -136,6 +151,7 @@ class WinRT_discovery:
         return self._get_current_session()
 
     def _update_handler_p(self, session: MediaSession, _args: Any):
+        self._last_playback_event_time = now()
         self._update_handler(session, TUpdate.Playback)
 
     def _update_handler_t(self, session: MediaSession, _args: Any):
@@ -183,11 +199,19 @@ class WinRT_discovery:
         self.current_track.title = info.title
         self.current_track.duration = position.end_time
 
-        new_status = self.status
+        old_status = new_status = self.status
+        armed_timeout = datetime.timedelta(milliseconds=500)
 
         if playback_info == PlaybackStatus.CLOSED:  # ill update from Ya.Music
-            # when pausing/resuming/seeking - playback updates are duplicated
-            if update_type == TUpdate.Timeline:
+            # P event confirms armed toggle (for pause: T, P, P scenario)
+            if update_type == TUpdate.Playback and self._armed_toggle_to is not None:
+                if now() - self._armed_time < armed_timeout:
+                    new_status = self._armed_toggle_to
+                self._armed_toggle_to = None
+
+            elif update_type == TUpdate.Timeline:
+                recent_p = now() - self._last_playback_event_time < armed_timeout
+
                 if (
                     self._last_meaning_update == TUpdate.Seek
                     and now() - self._position_last_update
@@ -196,14 +220,23 @@ class WinRT_discovery:
                     new_status = PlaybackStatus.PLAYING
                 elif self._last_meaning_update == TUpdate.Metadata:
                     new_status = PlaybackStatus.PLAYING
-                elif new_status == PlaybackStatus.PAUSED:
-                    new_status = PlaybackStatus.PLAYING
-                elif new_status == PlaybackStatus.PLAYING:
-                    new_status = PlaybackStatus.PAUSED
+                elif recent_p:
+                    # P came before T (play: P, P, T), apply immediately
+                    if old_status == PlaybackStatus.PAUSED:
+                        new_status = PlaybackStatus.PLAYING
+                    elif old_status == PlaybackStatus.PLAYING:
+                        new_status = PlaybackStatus.PAUSED
+                else:
+                    # Arm toggle for confirmation (pause: T, P, P)
+                    if old_status == PlaybackStatus.PAUSED:
+                        self._armed_toggle_to = PlaybackStatus.PLAYING
+                    elif old_status == PlaybackStatus.PLAYING:
+                        self._armed_toggle_to = PlaybackStatus.PAUSED
+                    self._armed_time = now()
         else:
             new_status = playback_info
 
-        # foobar doesn't send timeline updates
+        # foobar2000 doesn't send timeline updates
         if position.last_updated_time == NULLDATE:
             print(
                 f"Old pos: {self.position}, new_pos: {self.get_position()}, "
@@ -214,11 +247,22 @@ class WinRT_discovery:
             self._position_last_update = now()
         else:
             self._position_last_update = position.last_updated_time
+            if (
+                old_status == PlaybackStatus.PAUSED
+                and new_status == PlaybackStatus.PLAYING
+            ):  # timeline updates may arrive late, and we use this to extrapolate
+                self._position_last_update = now()
             self.position = position.position
         self.status = new_status
 
         if update_type != TUpdate.Playback:
             self._last_meaning_update = update_type
+
+        for cb in self._callbacks:
+            try:
+                cb()
+            except Exception as e:
+                print(f"Error in callback: {str(e)}")
 
     def print_upd(self):
         if self.current_track is not None:

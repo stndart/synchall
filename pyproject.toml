@@ -37,6 +37,7 @@ dev = [
 
 [project.scripts]
 sync = "shared_player.Sync:main"
+serve = "shared_player.Serve:main"
 
 [tool.ruff]
 target-version = 'py312'

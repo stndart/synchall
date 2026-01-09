@@ -1,6 +1,5 @@
 import threading
 import time
-from uuid import UUID
 import os
 
 import requests
@@ -22,7 +21,7 @@ class SyncPlayer:
     port: int
     addr: str
 
-    room: UUID | None
+    room: str | None
     playback: StreamPlayback
     poll_thread: threading.Thread
     download_thread: threading.Thread | None
@@ -46,7 +45,7 @@ class SyncPlayer:
         self.finder = Finder()
 
     def connect(self, uid: str):
-        self.room = UUID(uid)
+        self.room = uid
 
     def poll_thread_fun(self):
         while self.playing:
